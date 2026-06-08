@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Барабан имен</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            background-color: #f4f4f9; 
+            margin: 0; 
+            padding: 40px 20px; 
+            color: #333;
+        }
+        h1 { margin-bottom: 30px; }
+        .container { 
+            display: flex; 
+            gap: 50px; 
+            max-width: 900px; 
+            width: 100%; 
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .input-area { 
+            display: flex; 
+            flex-direction: column; 
+            width: 300px; 
+        }
+        textarea { 
+            height: 250px; 
+            padding: 12px; 
+            margin-bottom: 15px; 
+            border-radius: 8px; 
+            border: 1px solid #ccc; 
+            resize: vertical; 
+            font-size: 16px;
+        }
+        button { 
+            padding: 12px 20px; 
+            font-size: 16px; 
+            font-weight: bold;
+            border: none; 
+            border-radius: 8px; 
+            background-color: #007bff; 
+            color: white; 
+            cursor: pointer; 
+            transition: background 0.2s; 
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #aaa; cursor: not-allowed; }
+        
+        .wheel-area { 
+            position: relative; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+        }
+        canvas { 
+            border-radius: 50%; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2); 
+            background-color: #fff;
+        }
+        .pointer { 
+            position: absolute; 
+            top: -15px; 
+            width: 0; 
+            height: 0; 
+            border-left: 20px solid transparent; 
+            border-right: 20px solid transparent; 
+            border-top: 40px solid #e74c3c; 
+            z-index: 10; 
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+        #winner { 
+            margin-top: 25px; 
+            font-size: 28px; 
+            font-weight: bold; 
+            color: #2c3e50; 
+            min-height: 40px; 
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Генератор случайного имени</h1>
+<div class="container">
+    <div class="input-area">
+        <label for="names" style="margin-bottom: 8px; font-weight: bold;">Список имен (каждое с новой строки):</label>
+        <textarea id="names">Алексей
+Мария
+Иван
+Елена
+Дмитрий
+Ольга</textarea>
+        <button id="updateBtn">Обновить барабан</button>
+    </div>
+
+    <div class="wheel-area">
+        <div class="pointer"></div>
+        <canvas id="wheel" width="400" height="400"></canvas>
+        <button id="spinBtn" style="margin-top: 25px; width: 100%; background-color: #28a745;">Крутить!</button>
+        <div id="winner"></div>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('wheel');
+    const ctx = canvas.getContext('2d');
+    const spinBtn = document.getElementById('spinBtn');
+    const updateBtn = document.getElementById('updateBtn');
+    const namesInput = document.getElementById('names');
+    const winnerDisplay = document.getElementById('winner');
+
+    let names = [];
+    let colors = [];
+    let currentAngle = 0;
+    let spinTimeout = null;
+    let spinAngleStart = 0;
+    let spinTime = 0;
+    let spinTimeTotal = 0;
+
+    // Палитра цветов для секторов
+    const palette = ['#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FFB533', '#33FFF0', '#E9FF33'];
+
+    // Инициализация
+    function init() {
+        updateNames();
+        drawWheel();
+    }
+
+    // Чтение списка из текстового поля
+    function updateNames() {
+        // Разбиваем по переносу строки, убираем пробелы и пустые строки
+        names = namesInput.value.split('\n').map(n => n.trim()).filter(n => n !== '');
+        colors = names.map((_, i) => palette[i % palette.length]);
+        winnerDisplay.textContent = '';
+        currentAngle = 0;
+    }
+
+    // Отрисовка колеса
+    function drawWheel() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (names.length === 0) return;
+
+        const arc = Math.PI * 2 / names.length;
+        const radius = canvas.width / 2;
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+
+        for (let i = 0; i < names.length; i++) {
+            const angle = currentAngle + i * arc;
+            
+            // Рисуем сектор
+            ctx.beginPath();
+            ctx.fillStyle = colors[i];
+            ctx.moveTo(centerX, centerY);
+            ctx.arc(centerX, centerY, radius, angle, angle + arc, false);
+            ctx.lineTo(centerX, centerY);
+            ctx.fill();
+            ctx.save();
+
+            // Добавляем текст
+            ctx.fillStyle = "#fff";
+            ctx.translate(
+                centerX + Math.cos(angle + arc / 2) * (radius - 70),
+                centerY + Math.sin(angle + arc / 2) * (radius - 70)
+            );
+            ctx.rotate(angle + arc / 2);
+            ctx.font = "bold 18px sans-serif";
+            // Центрируем текст
+            ctx.fillText(names[i], -ctx.measureText(names[i]).width / 2, 6);
+            ctx.restore();
+        }
+    }
+
+    // Логика анимации вращения
+    function rotateWheel() {
+        spinTime += 30;
+        if (spinTime >= spinTimeTotal) {
+            stopRotateWheel();
+            return;
+        }
+        // Плавное замедление (ease-out)
+        const spinAngle = spinAngleStart - easeOut(spinTime, 0, spinAngleStart, spinTimeTotal);
+        currentAngle += (spinAngle * Math.PI / 180);
+        drawWheel();
+        spinTimeout = requestAnimationFrame(rotateWheel);
+    }
+
+    // Остановка и определение победителя
+    function stopRotateWheel() {
+        cancelAnimationFrame(spinTimeout);
+        
+        // Математика для вычисления сектора под указателем (указатель находится сверху, т.е. на 270 градусах или -90)
+        const degrees = currentAngle * 180 / Math.PI + 90;
+        const arcd = 360 / names.length;
+        const index = Math.floor((360 - degrees % 360) / arcd);
+        
+        winnerDisplay.textContent = '🎉 Выпало: ' + names[index] + ' 🎉';
+        spinBtn.disabled = false;
+        updateBtn.disabled = false;
+    }
+
+    // Функция плавного замедления (Easing function)
+    function easeOut(t, b, c, d) {
+        const ts = (t /= d) * t;
+        const tc = ts * t;
+        return b + c * (tc + -3 * ts + 3 * t);
+    }
+
+    // Обработчик кнопки вращения
+    spinBtn.addEventListener('click', () => {
+        if (names.length === 0) return;
+        spinBtn.disabled = true;
+        updateBtn.disabled = true;
+        winnerDisplay.textContent = 'Крутится...';
+        
+        // Рандомизируем силу и время вращения
+        spinAngleStart = Math.random() * 10 + 10; 
+        spinTime = 0;
+        spinTimeTotal = Math.random() * 3000 + 4000; // Вращение длится от 4 до 7 секунд
+        
+        rotateWheel();
+    });
+
+    // Обработчик обновления списка
+    updateBtn.addEventListener('click', () => {
+        updateNames();
+        drawWheel();
+    });
+
+    // Запуск при загрузке
+    init();
+</script>
+</body>
+</html>
