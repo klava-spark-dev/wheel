@@ -111,16 +111,11 @@
 </head>
 <body>
 
-<h1>Генератор случайного имени</h1>
+<h1>Колесо фортуны</h1>
 <div class="container">
     <div class="input-area">
-        <label for="names" style="margin-bottom: 8px; font-weight: bold;">Список имен (каждое с новой строки):</label>
-        <textarea id="names">Алексей
-Мария
-Иван
-Елена
-Дмитрий
-Ольга</textarea>
+        <label for="names" style="margin-bottom: 8px; font-weight: bold;">Список участниц:</label>
+        <textarea id="names"></textarea>
         <button id="updateBtn">Обновить барабан</button>
     </div>
 
@@ -133,8 +128,8 @@
 </div>
 
 <div class="winners-area">
-    <h3>🏆 Победители этой сессии</h3>
-    <ul id="winnersList"><li style="color: #aaa;">Пока никто не выиграл</li></ul>
+    <h3>🏆 Победительницы</h3>
+    <ul id="winnersList"><li style="color: #aaa;">-</li></ul>
 </div>
 
 <script>
