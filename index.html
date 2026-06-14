@@ -149,6 +149,7 @@
     let spinAngleStart = 0;
     let spinTime = 0;
     let spinTimeTotal = 0;
+    let pendingWinner = null;
 
     // Палитра цветов для секторов
     const palette = ['#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FFB533', '#33FFF0', '#E9FF33'];
@@ -231,12 +232,8 @@
         const winnerName = names[index];
         winnerDisplay.textContent = '🎉 Выпало: ' + winnerName + ' 🎉';
         
-        // Добавляем победителя в чёрный список и удаляем из колеса
-        winners.push(winnerName);
-        names.splice(index, 1);
-        colors = names.map((_, i) => palette[i % palette.length]);
-        drawWheel();
-        updateWinnersDisplay();
+        // Сохраняем победителя как "ожидающего" — он будет удалён при следующем запуске
+        pendingWinner = winnerName;
         
         spinBtn.disabled = false;
         updateBtn.disabled = false;
@@ -260,6 +257,19 @@
 
     // Обработчик кнопки вращения
     spinBtn.addEventListener('click', () => {
+        // Если есть ожидающий победитель с прошлого раза, удаляем его сейчас
+        if (pendingWinner !== null) {
+            winners.push(pendingWinner);
+            const idx = names.indexOf(pendingWinner);
+            if (idx !== -1) {
+                names.splice(idx, 1);
+            }
+            colors = names.map((_, i) => palette[i % palette.length]);
+            pendingWinner = null;
+            drawWheel();
+            updateWinnersDisplay();
+        }
+        
         if (names.length === 0) return;
         spinBtn.disabled = true;
         updateBtn.disabled = true;
@@ -275,6 +285,12 @@
 
     // Обработчик обновления списка
     updateBtn.addEventListener('click', () => {
+        // Если есть ожидающий победитель, финализируем его перед обновлением
+        if (pendingWinner !== null) {
+            winners.push(pendingWinner);
+            pendingWinner = null;
+            updateWinnersDisplay();
+        }
         updateNames();
         drawWheel();
     });
